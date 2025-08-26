@@ -6,57 +6,60 @@ You can embed a Talkyard forum in an `<iframe>` on your website.
 In most cases you wouldn't want to do that — it's better for SEO to have your
 forum on its own subdomain instead of in an iframe. But there are exceptions.
 
-Let's say you have a Talkyard forum at: `http://your-talkyard-forum.example.com`
-and your website is at: `http://www.example.com`.
+## Step-by-step instructions
 
-Then, to embed the forum, start with configuring the forum to allow
-your website to embed it.
+Create a Talkyard forum. Let's say its address is: `https://talkyard.example.com`,
+and your website is at: `https://www.example.com`.
+
+Then, to embed the forum, first configure Talkyard, then your website:
 
 
 ### Configuring Talkyard
 
-Go here: 
+1. Go here: `https://talkyard.example.com/-/admin/settings/embedded-comments`
 
-  `https://your talkyard forum/-/admin/settings/embedded-comments`
+1. On that page, in the **Allow embedding from** field, type the address to your website,
+   that is, `http://www.example.com` in our example.
 
-In the **Allow embedding from** field, type the address to your website,
-that is, `http://www example.com` in our example.
+1. Ignore the "_Which blog do you use?_" and "_Instructions for ..._" section
+   — they're for blog comments.
 
-Click **Save all changes** at the bottom.
-(You can ignore the "_Which blog do you use?_" and "_Instructions for ..._" section.)
+1. Click **Save all changes** at the bottom.
 
 
 ### Configuring your website
 
-Over at your website, on the page where you want to embed the forum,
-add this Javascript: (filling in your real forum address)
+Over at your website, on the page where you want to embed the forum:
 
-```
-<script type="text/javascript">
-talkyardServerUrl = 'https://your talkyard forum';
-</script>
-<script async defer src="https://your talkyard forum/-/"></script>
-```
+1. Add a variable, `talkyardServerUrl`, with the URL to your Talkyard forum,
+    and also load Talkyard's javascript:
 
-And add this `<div>` where you want the forum to appear:
+    ```
+    <script type="text/javascript">
+    talkyardServerUrl = 'https://talkyard.example.com';
+    </script>
+    <script async defer src="https://talkyard.example.com/-/talkyard-forum.min.js"></script>
+    ```
 
-```
-<div className="talkyard-forum"></div>
-```
+2. Add this `<div>` where you want the forum to appear:
 
-Exactly how you make the above changes, depends on what website software
-you use. For example, if it's a WordPress website, or a Hugo static website,
-or something else. Probably you'll need to consult the documentation.
+    ```
+    <div class="talkyard-forum"></div>
+    ```
 
-Afterwards, reloade the page, and the forum should appear in an `<iframe>`.
+3. Reloade the page, and the forum should appear in an `<iframe>`.
 
-Ask for help if you want: https://forum.talkyard.io
+Exactly how you make the above changes, depends on what website software you use.
+For example, if you have a WordPress website, or a Hugo static website,
+or something else. You might need to consult the documentation.
+
+Ask for help in our forum: https://forum.talkyard.io
 
 
 ## Deep links
 
 Deep links into the iframe with the embedded forum, should just work:
-Talkyard's script running on [the page that embeds the forum]
+The `talkyard-forum.min.js` script on [the page that embeds the forum]
 automatically updates the URL, so the #hash-fragment points to
 the page shown in the forum `<iframe>`.
 
@@ -65,15 +68,15 @@ and the URL path to the Talkyard page shown in the `<iframe>` is: `/-123/talkyar
 then Talkyard would update the web browser's URL to:
 `https://www.example.com/forum#/-123/talkyard-page` (note the `#` in the middle).
 
-And if you paste this into the browser address bar:
-`https://www.example.com/forum#/-123/talkyard-page`,
+And if you paste this the above URL into the browser address bar,
 Talkyard will look at the URL #hash-fragment, that is, `#/-123/talkyard-page`,
 and show page `/-123/talkyard-page` in the `<iframe>`.
 
+<!--
 (If you want to use query string parameters instead of the #hash-fragment
 to specify the forum page path to Talkyard, you can tell us:
 https://forum.talkyard.io.)
-
+-->
 
 <!--  Why 'false', a string? Let's change to  `false` (a bool) not a string,
     and not mention this until afterwards:  (unless sbd asks)
