@@ -159,9 +159,15 @@ If you try to copy a link by right-clicking it, or open it in a new tab by middl
 you sometimes get a broken URL.
 This is because a fully working right-click-copy-link feature hasn't been implemented everywhere.
 
+## &lt;iframe&gt; inside &lt;iframe&gt;?
+
+Embedding Talkyard in an `<iframe>` inside <i>another</i> `<iframe>` hasn't been tested,
+and probably won't work that well:
+Talkyard would be unable to position popup dialogs or adjust the forum iframe size properly,
+since Talkyard wouldn't know about the outer iframe's position or dimensions on the parent page.
 
 ## Need Help?
 
-If you run into troubles, please ask for help: https://forum.talkyard.io
+If you run into troubles, ask for help: https://forum.talkyard.io
 
 
