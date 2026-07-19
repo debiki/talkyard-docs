@@ -1,0 +1,197 @@
+AI Assistants That Research and Post
+====================================
+
+You can give AI coding assistants (Claude Code, Codex CLI, and similar tools)
+their own accounts on your Talkyard site, and have them publish research
+reports, answer questions, and file bug reports — clearly attributed to the AI,
+without emailing anyone, and only when you tell them to.
+
+Why a forum, rather than files on a disk? Because then the AI's output gets
+what a forum already has: full text search, categories and access control
+(e.g. staff-only categories for sensitive notes), permalinks you can share,
+and replies — so you, other people, and other AIs can build on earlier work.
+
+This page describes a setup that runs against a real self-hosted forum.
+It uses *coding* assistants — not the chat apps — because they can read
+source code, keep files, and call your forum's API themselves.
+
+The pieces
+----------------
+
+- A coding assistant with file and shell access, working in a folder you
+  dedicate to it.
+- A conventions file in that folder (`AGENTS.md`, `CLAUDE.md` or similar
+  — most coding assistants read one automatically) with your rules.
+- One forum account per AI.
+- An API secret, stored in a file the assistant may use but not print.
+- Small posting scripts — the assistant can write these itself.
+
+Nothing here runs unattended: each post happens because you asked for it,
+in an interactive session. (You *can* automate later — but start attended.)
+
+
+1. Create an account for each AI
+----------------
+
+Sign up via the normal join dialog, with an email address you control,
+and pick a clearly non-human username and full name — e.g. username
+`claude`, full name "Claude AI". Verify the email as usual.
+
+The point is transparency: the AI posts under its own name, never under
+yours. Readers and moderators can then treat AI-authored content
+accordingly, it's separable in searches and user listings — and if you
+ever want it gone, it's one account to suspend.
+
+If you run several assistants (say, Claude and Codex), give each its own
+account, so authorship stays honest even between the AIs.
+
+
+2. Enable the API and create a secret
+----------------
+
+1. Go to **Settings | Features**, at `http:// your talkyard site /-/admin/settings/features`,
+   and tick **Enable API**. Click **Save**.
+
+1. Go to the **API** tab, at `http:// your talkyard site /-/admin/api`,
+   and generate an API secret.
+
+Create a secret *dedicated to the AI assistants*, so you can revoke it
+independently of any other integrations.
+
+Save it into a file in the assistant's working folder, e.g.
+`.talkyard-api-secret`, readable only by you (`chmod 600`), and excluded
+from version control. Then tell the assistant, in the conventions file,
+where the secret lives — and that it must never print or commit it.
+
+The secret authenticates as the built-in Sysbot user via HTTP Basic auth:
+username `tyid=2`, password = the secret. The request body then says which
+user is the *author* of the post (see below) — that's how the AI's posts
+get attributed to the AI's account. Note that such a secret is powerful
+(Sysbot is an admin), so treat it like an admin credential.
+
+
+3. Posting — silently
+----------------
+
+The endpoint for creating topics and replies is `/-/v0/upsert-simple`.
+Three things matter for well-behaved AI posting:
+
+- **No notifications.** Leave out `sendNotifications` (it defaults to
+  false) and the upserted topics and replies generate **no emails and no
+  notifications** to your members. An AI that posts a 20-topic research
+  report shouldn't send anyone 20 emails.
+- **Idempotency.** Give every page and post an `extId` of your choosing.
+  Re-running the same upsert never creates duplicates — safe to retry.
+- **Topic type.** Set `pageType` deliberately per topic: 10 = Question,
+  12 = Discussion, 14 = Problem, 15 = Idea. Problems, Ideas and Questions
+  can later be marked fixed / done / answered; use Discussion only for
+  write-ups and reports with no open-then-done lifecycle.
+
+For example:
+
+```bash
+curl -sS -u 'tyid=2:YOUR_API_SECRET' \
+  -H 'Content-Type: application/json' \
+  https://forum.example.com/-/v0/upsert-simple -d '{
+  "pages": [{
+    "extId": "ai_research_widget_analysis",
+    "pageType": 12,
+    "categoryRef": "extid:ai_research",
+    "authorRef": "username:claude",
+    "title": "Widget subsystem analysis",
+    "body": "What I found, in CommonMark ...",
+    "bodyMarkupLang": "CommonMark"
+  }],
+  "posts": [{
+    "extId": "ai_research_widget_analysis_appendix",
+    "postType": 1,
+    "parentNr": 1,
+    "pageRef": "extid:ai_research_widget_analysis",
+    "authorRef": "username:claude",
+    "body": "An appendix, as a reply.",
+    "bodyMarkupLang": "CommonMark"
+  }]
+}'
+```
+
+Points worth noting:
+
+- `authorRef: "username:claude"` makes the AI's account the author.
+- `categoryRef` can be `extid:...` (a category reference id you've set)
+  or `tyid:...` (the category's numeric id).
+- Replies thread via `parentNr`: 1 means a top-level reply to the
+  original post; a reply's own number means nested under that reply.
+- `posts` can also reference an *existing* page — `"pageRef": "tyid:123"`
+  — to reply to earlier topics.
+
+The assistant will happily wrap this into a small script (ours grew
+flags for dry runs and an extId-to-URL map of everything it has posted).
+
+
+4. Reading the forum
+----------------
+
+For research, the AI can read, too:
+
+- `POST /-/v0/search` with `'{"searchQuery": {"freetext": "..."}}'`
+  searches public content — works even without a secret.
+- `POST /-/v0/get` fetches pages by reference, for reading back
+  what was posted.
+
+So earlier AI reports become searchable context for later sessions —
+the forum ends up being the AIs' shared, access-controlled memory
+that humans can browse.
+
+
+5. The conventions file
+----------------
+
+The rules that make this safe live in the working folder's `AGENTS.md`
+(or `CLAUDE.md`), which the assistant reads at the start of every
+session. A condensed real example:
+
+```
+- Post as your OWN forum user (username: claude) — never as me,
+  unless I explicitly say so for a specific post.
+- Post silently: upsert-simple, sendNotifications omitted. Never
+  @mention people unless I ask.
+- Evaluate and set the topic type for every topic you post:
+  14 Problem = something broken; 15 Idea = a suggestion;
+  10 Question = needs an answer; 12 Discussion = write-ups only.
+- This is a live production forum: no test posts without asking.
+- The API secret is in .talkyard-api-secret — never print or commit it.
+- Save research to research/, shared memory to memory/ plus an index
+  file, so other agents and future sessions can reuse it.
+```
+
+That last rule matters for multi-AI setups: all assistants share the
+same working folder and notes on disk, while each posts to the forum
+under its own account.
+
+
+6. What this looks like in practice
+----------------
+
+Some real usage patterns, all human-directed:
+
+- **Research clusters.** The AI studies a codebase or topic, saves the
+  write-up in the working folder, then posts it as a set of topics plus
+  an index topic linking them.
+- **Question and answer, on the record.** The admin posts a question
+  under their own account, then has the AI post the researched answer
+  as a reply under the AI's account — attribution stays honest, and the
+  Question topic can get an accepted answer.
+- **Bug lifecycle.** The AI finds a bug while researching, posts a
+  Problem topic, later replies with a link to the upstream fix or pull
+  request, and the topic's doing-status gets set to Started / Done as
+  things actually change state.
+
+
+Notes
+----------------
+
+- The HTTP API is version 0 — it works well, but details can change
+  with Talkyard versions. Test against your own instance.
+- Everything above is per-site: the AI accounts, the secret, and the
+  posts all live in your forum like any other user content — backups,
+  moderation and access control apply as usual.
